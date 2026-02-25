@@ -84,6 +84,66 @@ async def websocket_alerts(websocket: WebSocket) -> None:
 # ---------------------------------------------------------------------------
 # Pipeline trigger endpoint (inline, not in a separate router)
 # ---------------------------------------------------------------------------
+class GenerateRequest(BaseModel):
+    """Request body for the generate-and-ingest endpoint."""
+    count: int = 500
+    seed: int = 42
+
+
+class GenerateResponse(BaseModel):
+    """Response after a generate job is accepted."""
+    status: str
+    count: int
+    seed: int
+    message: str
+
+
+async def _run_generate_pipeline(count: int, seed: int) -> None:
+    """Background task: generate synthetic transactions then ingest them."""
+    try:
+        import random
+        from faker import Faker
+        from data.generate_data import generate_dataset
+        random.seed(seed)
+        Faker.seed(seed)
+        transactions = generate_dataset(total=count)
+        pipeline = FraudDetectionPipeline(broadcast_callback=manager.broadcast)
+        summary = await pipeline.ingest_from_list(transactions)
+        logger.info(
+            "Generate pipeline done: total=%s flagged=%s",
+            summary.get("total"), summary.get("flagged"),
+        )
+    except Exception:
+        logger.exception("Generate pipeline failed")
+
+
+@app.post("/api/pipeline/generate", response_model=GenerateResponse, tags=["pipeline"])
+async def generate_and_ingest(
+    body: GenerateRequest,
+    background_tasks: BackgroundTasks,
+) -> GenerateResponse:
+    """Generate synthetic transactions and ingest them through the fraud pipeline.
+
+    Works on Vercel — transactions are generated in memory and processed
+    directly without writing any intermediate files.
+
+    Args:
+        body: count (number of transactions) and seed (for reproducibility).
+        background_tasks: FastAPI background task manager.
+
+    Returns:
+        Confirmation with job parameters.
+    """
+    background_tasks.add_task(_run_generate_pipeline, body.count, body.seed)
+    logger.info("Generate pipeline triggered: count=%s seed=%s", body.count, body.seed)
+    return GenerateResponse(
+        status="started",
+        count=body.count,
+        seed=body.seed,
+        message=f"Generating {body.count} transactions in background (seed={body.seed})",
+    )
+
+
 class PipelineTriggerRequest(BaseModel):
     """Request body for triggering the fraud detection pipeline.
 
