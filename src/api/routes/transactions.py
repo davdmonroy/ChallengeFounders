@@ -122,7 +122,7 @@ async def get_related_transactions(
 
     return RelatedTransactionsResponse(
         transaction=TransactionResponse.model_validate(txn),
-        by_email=by_email,
-        by_ip=by_ip,
-        by_card_bin=by_bin,
+        related_by_email=by_email,
+        related_by_ip=by_ip,
+        related_by_bin=by_bin,
     )
