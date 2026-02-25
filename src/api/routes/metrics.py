@@ -100,7 +100,8 @@ def _compute_hourly_volume(
         hourly_counts[hour_key] += 1
 
     result: list[dict[str, int | str]] = []
-    for i in range(hours, 0, -1):
+    # range(hours-1, -1, -1): i=hours-1 is the oldest hour, i=0 is the current hour
+    for i in range(hours - 1, -1, -1):
         hour_dt = now - timedelta(hours=i)
         hour_key = hour_dt.strftime("%Y-%m-%dT%H:00:00Z")
         result.append({"hour": hour_key, "count": hourly_counts.get(hour_key, 0)})
@@ -190,8 +191,8 @@ async def get_metrics(
         count_result = await db.execute(count_stmt)
         total_alerts_24h = count_result.scalar() or 0
 
-    # 8. High risk alerts (risk_score >= 80)
-    high_risk_alerts = sum(1 for a in alerts if a.risk_score >= 80)
+    # 8. High risk alerts: score >= 30 (VELOCITY or HIGH_VALUE_FIRST_PURCHASE tier)
+    high_risk_alerts = sum(1 for a in alerts if a.risk_score >= 30)
 
     return MetricsResponse(
         hourly_alert_volume=hourly_alert_volume,
