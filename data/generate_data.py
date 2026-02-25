@@ -456,15 +456,18 @@ def generate_clean_transactions(count: int) -> list[dict[str, object]]:
 # ---------------------------------------------------------------------------
 
 
-def generate_dataset() -> list[dict[str, object]]:
+def generate_dataset(total: int = 550) -> list[dict[str, object]]:
     """Assemble the full synthetic dataset with embedded fraud patterns.
 
     Generates fraud patterns first (they require specific timing constraints),
-    then fills the remainder with clean transactions to reach 550+ total.
+    then fills the remainder with clean transactions to reach *total*.
     The final list is sorted chronologically by timestamp.
 
+    Args:
+        total: Minimum total number of transactions to produce.
+
     Returns:
-        A list of 550+ transaction dicts sorted by timestamp.
+        A list of at least *total* transaction dicts sorted by timestamp.
     """
     transactions: list[dict[str, object]] = []
 
@@ -483,8 +486,8 @@ def generate_dataset() -> list[dict[str, object]]:
 
     fraud_count = len(transactions)
 
-    # 2. Generate clean transactions to reach 550+ total
-    clean_needed = max(0, 550 - fraud_count)
+    # 2. Fill remainder with clean transactions
+    clean_needed = max(0, total - fraud_count)
     clean = generate_clean_transactions(clean_needed)
     transactions.extend(clean)
 
@@ -574,15 +577,31 @@ def _print_summary(transactions: list[dict[str, object]]) -> None:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    random.seed(42)
-    Faker.seed(42)
+    import argparse
 
-    print("Generating synthetic transaction dataset...")
-    dataset = generate_dataset()
+    parser = argparse.ArgumentParser(description="Generate synthetic SkyMart transaction data")
+    parser.add_argument(
+        "--count", type=int, default=550,
+        help="Total number of transactions to generate (default: 550)",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=42,
+        help="Random seed for reproducibility (default: 42)",
+    )
+    parser.add_argument(
+        "--output", type=str, default=None,
+        help="Output file path (default: data/transactions.json)",
+    )
+    args = parser.parse_args()
 
-    # Resolve output path relative to the script's parent directory
+    random.seed(args.seed)
+    Faker.seed(args.seed)
+
+    print(f"Generating {args.count} transactions (seed={args.seed})...")
+    dataset = generate_dataset(total=args.count)
+
     script_dir = Path(__file__).resolve().parent
-    output_path = script_dir / "transactions.json"
+    output_path = Path(args.output) if args.output else script_dir / "transactions.json"
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(dataset, f, indent=2, default=str)
