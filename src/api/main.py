@@ -148,7 +148,8 @@ async def trigger_pipeline(
 
 # ---------------------------------------------------------------------------
 # Mount static files for dashboard (must be last to avoid route conflicts)
+# Use absolute path so it works both locally and on Vercel.
 # ---------------------------------------------------------------------------
-dashboard_path = Path("src/dashboard")
+dashboard_path = Path(__file__).parent.parent / "dashboard"
 if dashboard_path.is_dir():
-    app.mount("/", StaticFiles(directory="src/dashboard", html=True), name="dashboard")
+    app.mount("/", StaticFiles(directory=str(dashboard_path), html=True), name="dashboard")

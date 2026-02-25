@@ -3,10 +3,11 @@
 venv/
 env/
 
-# Database files
-*.db
+# Database files (except the pre-populated demo DB bundled for Vercel)
 *.db-shm
 *.db-wal
+*.db
+!fraud_detection.db
 
 # Python cache
 __pycache__/
